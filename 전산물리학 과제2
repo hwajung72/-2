@@ -1,0 +1,72 @@
+import numpy as np
+import matplotlib.pyplot as plt
+from Trap1_function_gaussian import trap2
+
+x=[]
+y=[]
+with open('hist2.csv','r') as f:
+    for line in f.readlines():
+        _x, _y=[float(i) for i in line.split(' ')]
+        x.append(_x)
+        y.append(_y)
+x=np.array(x)
+y=np.array(y)
+
+#정규분포함수 정의
+def gaussian(x,A,mu,sigma):
+    return A*np.exp(-0.5*((x-mu)/sigma)**2)
+#total_model을 두 개의 가우시안을 합한 값으로 나타내며 입자가 2개(A,B)임을 가정.
+def total_model(x,A1,mu1,sigma1,A2,mu2,sigma2):
+    return gaussian(x,A1,mu1,sigma1)+gaussian(x,A2,mu2,sigma2)
+
+#피팅함수. 반복적으로 A,mu,sigma값을 업데이트하여 측정된 값에 맞춘다.
+#초기값은 데이터에서 count의 최대값을 기준으로 설정함.
+#수치미분(gradient descent)으로 오타 줄이며 피팅 진행. 후 파라미터 업데이트.
+def fit_model(x,y,n_iter=3000,lr=1e-6):  #n_iter은 반복횟수, lr은 learning rate
+    params=np.array([max(y),np.mean(x)*0.8,0.1,
+                       max(y)/2,np.mean(x)*1.4,0.3])  #A1,mu1,sigma1,A2,mu2,sigma2 각각의 초기값
+    for _ in range(n_iter):  
+        y_pred=total_model(x,*params)  #params로 예측값 y_pred 계산
+        error=y-y_pred  #실제데이터 y, 예측값 y_pred
+        grad=np.zeros_like(params)
+        eps=1e-4
+        for i in range(len(params)):  #수치미분: eps의 i번째요소를 +eps 변경했을 때 오차 제곱의 평균 계산
+            p_temp=params.copy()
+            p_temp[i]+=eps
+            grad[i]=(np.mean((y-total_model(x,*p_temp))**2) -
+                       np.mean(error**2))/eps
+        params-=lr*grad
+    return params
+
+params=fit_model(x,y)
+print("Fitted parameters:",params)
+A1,mu1,sigma1,A2,mu2,sigma2=params
+
+yA=gaussian(x,A1,mu1,sigma1)
+yB=gaussian(x,A2,mu2,sigma2)
+y_total=yA+yB
+
+#그래프
+plt.figure(figsize=(9,6))
+plt.bar(x,y,width=(x[1]-x[0])*0.8,color='gray',alpha=0.5,label='Measured Data')
+plt.plot(x,yA,'r-',linewidth=2,label=f'Gaussian A (μ={mu1:.2f}, σ={sigma1:.2f})')
+plt.plot(x,yB,'b-',linewidth=2,label=f'Gaussian B (μ={mu2:.2f}, σ={sigma2:.2f})')
+plt.plot(x,y_total,'k-',linewidth=2.5,label='A + B (Total Fit)')
+plt.xlabel("Energy")
+plt.ylabel("Counts")
+plt.title("Fit histogram and gaussian functions")
+plt.legend()
+plt.grid(True)
+plt.show()
+
+#lambda는 입력:출력 형태의 간단한 함수.
+fA=lambda z: gaussian(z,A1,mu1,sigma1)
+fB=lambda z: gaussian(z,A2,mu2,sigma2)
+
+area_A=trap2(fA,min(x),max(x),n=1000)
+area_B=trap2(fB,min(x),max(x),n=1000)
+ratio=area_A/area_B
+
+print(f"particle A integral value: {area_A:.3f}")
+print(f"particle B integral value: {area_B:.3f}")
+print(f"particle A/B production rate = {ratio:.3f}")
