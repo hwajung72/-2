@@ -4,7 +4,7 @@ from Trap1_function_gaussian import trap2
 
 x=[]
 y=[]
-with open('hist2.csv','r') as f:
+with open('C:/Users/82105/OneDrive/바탕 화면/25-2 전산물리학/hist2.csv','r') as f:
     for line in f.readlines():
         _x, _y=[float(i) for i in line.split(' ')]
         x.append(_x)
